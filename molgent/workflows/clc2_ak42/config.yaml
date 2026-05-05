@@ -1,0 +1,66 @@
+# Reproduction of Ma et al. 2023 (Nat Commun) — ClC-2 / AK-42.
+#
+# The paper deposits three structures; we focus on the TMD pair that hosts the
+# AK-42 binding site:
+#   * 7XJA — apo TMD (reference)
+#   * 8GQU — AK-42-bound TMD
+#
+# 7XF5 (apo full length) is listed for completeness but the MD/MM-PBSA target
+# is the TMD pair, matching the paper's analysis.
+
+paper:
+  title: "Cryo-EM structures of ClC-2 chloride channel reveal the blocking mechanism of its specific inhibitor AK-42"
+  doi: "10.1038/s41467-023-39218-6"
+  pdb_apo_full: "7XF5"
+  pdb_apo_tmd: "7XJA"
+  pdb_bound_tmd: "8GQU"
+  emdb_apo_full: "EMD-33169"
+  emdb_apo_tmd: "EMD-33223"
+  emdb_bound_tmd: "EMD-34202"
+
+ligand:
+  name: "AK4"
+  resname: "AK4"           # 3-letter resname used inside generated topologies
+  smiles: "OC(=O)c1cc(F)cc(c1)Oc2ccc3nc(NC(=O)c4cccnc4)sc3c2"
+
+md:
+  temperature_K: 310.0
+  pressure_bar: 1.0
+  timestep_fs: 4.0
+  hmr_amu: 1.5
+  nonbonded_cutoff_nm: 1.0
+  nvt_steps: 125000        # 500 ps
+  npt_steps: 250000        # 1 ns
+  production_ns: 100.0     # per replica
+  n_replicas: 3
+  write_interval_ps: 100.0
+
+mmpbsa:
+  stride: 5                # use every 5th saved frame -> ~200 frames / replica
+  max_frames: null
+  ligand_resname: "AK4"
+
+# Diagnostic distances pulled directly from the paper's binding-mode discussion.
+# Atom names come from the AK-42 SDF (RDKit numbering); update them after the
+# first ligand build if needed. Residue numbering follows the deposited PDBs.
+distances:
+  - name: "K204(NZ)-AK42(pyN)"
+    residue_index: 204
+    residue_atom: "NZ"
+    ligand_resname: "AK4"
+    ligand_atom: "N7"
+  - name: "S392(OG)-AK42(COOH)"
+    residue_index: 392
+    residue_atom: "OG"
+    ligand_resname: "AK4"
+    ligand_atom: "O2"
+  - name: "K394(N)-AK42(COOH)"
+    residue_index: 394
+    residue_atom: "N"
+    ligand_resname: "AK4"
+    ligand_atom: "O3"
+
+paths:
+  out_dir: "data/results/clc2_ak42"
+  ligand_dir: "data/ligands"
+  structure_cache: "data/structures"

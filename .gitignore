@@ -1,0 +1,20 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.pytest_cache/
+.coverage
+.ruff_cache/
+build/
+dist/
+
+# trajectories + intermediates
+data/results/
+data/ligands/*.xml
+data/ligands/*.sdf
+!data/ligands/.gitkeep
+
+# editor
+.vscode/
+.idea/
+*.swp

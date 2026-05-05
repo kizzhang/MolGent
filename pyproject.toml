@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "molgent"
+version = "0.1.0"
+description = "Agent-orchestrated MD + MM/PBSA workflows for structural-biology paper reproduction"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "MolGent contributors"}]
+dependencies = [
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "pyyaml>=6.0",
+    "biopython>=1.83",
+    "rdkit>=2024.3",
+    "mdanalysis>=2.7",
+    "mdtraj>=1.10",
+    "parmed>=4.2",
+    "matplotlib>=3.8",
+    "openmm>=8.1",
+    "pdbfixer>=1.9",
+    "anthropic>=0.40",
+    "requests>=2.31",
+]
+
+[project.optional-dependencies]
+# Installable via pip on most systems but heavier; required for ligand FF generation.
+gpu = ["openmmforcefields>=0.14"]
+dev = ["pytest>=8", "pytest-cov", "ruff"]
+
+[project.scripts]
+molgent = "molgent.agent.cli:main"
+molgent-clc2 = "molgent.workflows.clc2_ak42.run:main"
+
+[tool.setuptools.packages.find]
+include = ["molgent*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100

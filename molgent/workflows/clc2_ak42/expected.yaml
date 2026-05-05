@@ -1,0 +1,32 @@
+# Acceptance criteria for the ClC-2 / AK-42 reproduction.
+# Sourced from Ma et al. 2023, Nat Commun (DOI 10.1038/s41467-023-39218-6) —
+# Fig 4 / Supplementary discussion of MM/PBSA per-residue contributions and
+# the structural binding-mode description.
+
+top_residues:
+  - "K204"
+  - "S392"
+  - "Q393"
+  - "K394"
+
+# An overlap of >= 3 of these 4 residues with the reproduced top-4 (by |ΔG|)
+# counts as a successful reproduction of the per-residue ranking.
+acceptance:
+  min_top_overlap: 3
+
+hbond_distances_A:
+  K204_NZ_to_pyridine_N:
+    paper_value: 3.0
+    cutoff: 3.5
+    min_occupancy: 0.7
+  S392_OG_to_carboxyl_O:
+    paper_value: 2.7
+    cutoff: 3.5
+    min_occupancy: 0.6
+  K394_N_to_carboxyl_O:
+    paper_value: 2.57
+    cutoff: 3.5
+    min_occupancy: 0.7
+
+structural_changes:
+  - "M460 sidechain reorganises in the bound state vs. apo"
