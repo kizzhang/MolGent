@@ -1,0 +1,61 @@
+; NVT equilibration, paper protocol (Ma et al. 2023, V-rescale, 100 ps).
+; Position restraints on protein heavy atoms (define = -DPOSRES, applied via
+; topol.top include of CHARMM-GUI's posre.itp).
+define                  = -DPOSRES
+
+integrator              = md
+dt                      = {timestep_ps}      ; 0.002 ps = 2 fs (CHARMM36m standard)
+nsteps                  = {nsteps}           ; runtime override
+
+; Output control.
+nstxout                 = 0
+nstvout                 = 0
+nstenergy               = 500
+nstlog                  = 500
+nstxout-compressed      = 5000
+compressed-x-grps       = System
+
+; Bond constraints.
+constraints             = h-bonds
+constraint-algorithm    = lincs
+lincs-iter              = 1
+lincs-order             = 4
+
+; Neighbor searching.
+cutoff-scheme           = Verlet
+ns_type                 = grid
+nstlist                 = 20
+rlist                   = 1.2
+pbc                     = xyz
+
+; Electrostatics + vdW.
+coulombtype             = PME
+rcoulomb                = 1.2
+fourierspacing          = 0.16
+pme_order               = 4
+vdwtype                 = cutoff
+vdw-modifier            = force-switch
+rvdw-switch             = 1.0
+rvdw                    = 1.2
+DispCorr                = no
+
+; Temperature coupling — V-rescale (paper).
+; tc-grps follows CHARMM-GUI Membrane Builder convention: SOLU = protein +
+; ligand, MEMB = lipids, SOLV = water + ions.
+tcoupl                  = v-rescale
+tc-grps                 = SOLU MEMB SOLV
+tau_t                   = 0.1   0.1   0.1
+ref_t                   = {temperature_k}  {temperature_k}  {temperature_k}
+
+; Pressure coupling off (NVT).
+pcoupl                  = no
+
+; Velocity generation.
+gen_vel                 = yes
+gen_temp                = {temperature_k}
+gen_seed                = {seed}
+
+; Periodic molecules?  No (small ligand, restrained protein).
+periodic_molecules      = no
+
+continuation            = no

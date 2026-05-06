@@ -19,48 +19,96 @@ paper:
   emdb_bound_tmd: "EMD-34202"
 
 ligand:
-  name: "AK4"
-  resname: "AK4"           # 3-letter resname used inside generated topologies
-  smiles: "OC(=O)c1cc(F)cc(c1)Oc2ccc3nc(NC(=O)c4cccnc4)sc3c2"
+  name: "GH6"
+  resname: "GH6"           # RCSB CCD ligand ID for AK-42 in 8GQU
+  smiles: "OC(=O)c1cccnc1Nc2c(Cl)ccc(OCc3ccccc3)c2Cl"
 
+# OpenMM/AMBER reference pipeline (kept for sanity tests; not the paper protocol).
+# The paper-faithful pipeline lives under `gromacs:` below and is the default
+# entrypoint (`molgent-clc2-gmx`).
 md:
   temperature_K: 310.0
   pressure_bar: 1.0
   timestep_fs: 4.0
   hmr_amu: 1.5
   nonbonded_cutoff_nm: 1.0
-  nvt_steps: 125000        # 500 ps
-  npt_steps: 250000        # 1 ns
-  production_ns: 100.0     # per replica
-  n_replicas: 3
-  write_interval_ps: 100.0
+  nvt_steps: 25000         # 100 ps at 4 fs (matches paper's 100 ps NVT)
+  npt_steps: 250000        # 1 ns NPT
+  production_ns: 5.0       # per replica (matches paper)
+  n_replicas: 5            # matches paper
+  write_interval_ps: 10.0  # 500 frames/replica
+
+# Paper-faithful pipeline (GROMACS + CHARMM36m + CGenFF + CHARMM-GUI).
+# Pre-requisite: user has uploaded CHARMM-GUI Membrane Builder bundle to
+# data/charmm_gui/{apo_tmd,bound_tmd}/ and CGenFF .str to data/ligands/gh6.str.
+gromacs:
+  temperature_K: 310.0
+  pressure_bar: 1.0
+  timestep_fs: 2.0          # CHARMM36m standard; no HMR
+  nvt_ps: 100.0             # paper's NVT length
+  npt_ps: 1000.0            # 1 ns NPT
+  production_ns: 5.0        # per replica (paper)
+  n_replicas: 5             # paper
+  write_interval_ps: 10.0   # 500 frames/replica
+  thermostat: "v-rescale"
+  barostat: "Parrinello-Rahman"
+  pcoupltype: "semiisotropic"  # membrane systems
+  rvdw_nm: 1.2              # CHARMM36m force-switched LJ
+  rvdw_switch_nm: 1.0
+  rcoulomb_nm: 1.2
+  cgenff_str: "data/ligands/gh6.str"
+  charmm_gui:
+    apo_tmd: "data/charmm_gui/apo_tmd"
+    bound_tmd: "data/charmm_gui/bound_tmd"
+  cpu_verify:
+    nvt_ps: 50.0
+    npt_ps: 50.0
+    production_ns: 0.05     # 50 ps single replicate
+    n_replicas: 1
 
 mmpbsa:
-  stride: 5                # use every 5th saved frame -> ~200 frames / replica
+  stride: 5                # use every 5th saved frame -> ~100 frames / replica at 10 ps interval
   max_frames: null
-  ligand_resname: "AK4"
+  ligand_resname: "GH6"
+  igb: 8                   # GBn2 (Onufriev), matches OpenMM impl
+  startframe: 1
+  endframe: 500
+  interval: 5
+  decomp_verbose: 2        # idecomp=4, dec_verbose=2 in gmx_MMPBSA
 
 # Diagnostic distances pulled directly from the paper's binding-mode discussion.
-# Atom names come from the AK-42 SDF (RDKit numbering); update them after the
-# first ligand build if needed. Residue numbering follows the deposited PDBs.
+# Atom names follow the RCSB CCD definition of GH6 in 8GQU (preserved when
+# the heterogen is kept by PDBFixer). Computed crystal-structure distances
+# (chain A): K204(NZ)-N08 = 3.68 A, S392(OG)-O01 = 3.51 A, K394(N)-O03 = 2.61 A.
+# Paper-reported H-bond distances are 3.0 / 2.7 / 2.57 A respectively.
+# The carboxyl oxygens are O01 and O03 (C02 = carboxyl C); GH6's two amide
+# H-bond donors lock O01 to S392(OG) and O03 to K394 backbone N.
 distances:
   - name: "K204(NZ)-AK42(pyN)"
+    chain: "A"
     residue_index: 204
     residue_atom: "NZ"
-    ligand_resname: "AK4"
-    ligand_atom: "N7"
+    ligand_resname: "GH6"
+    ligand_chain: "A"
+    ligand_atom: "N08"
   - name: "S392(OG)-AK42(COOH)"
+    chain: "A"
     residue_index: 392
     residue_atom: "OG"
-    ligand_resname: "AK4"
-    ligand_atom: "O2"
+    ligand_resname: "GH6"
+    ligand_chain: "A"
+    ligand_atom: "O01"
   - name: "K394(N)-AK42(COOH)"
+    chain: "A"
     residue_index: 394
     residue_atom: "N"
-    ligand_resname: "AK4"
-    ligand_atom: "O3"
+    ligand_resname: "GH6"
+    ligand_chain: "A"
+    ligand_atom: "O03"
 
 paths:
   out_dir: "data/results/clc2_ak42"
   ligand_dir: "data/ligands"
   structure_cache: "data/structures"
+  charmm_gui_dir: "data/charmm_gui"
+  gromacs_out_dir: "data/results/clc2_ak42_gmx"

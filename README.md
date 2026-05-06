@@ -18,9 +18,18 @@ fetch_pdb ──► fix_pdb ──► embed_membrane_and_solvate ──► run_m
 
 Two ways to drive the pipeline:
 
-1. **Deterministic CLI** (`molgent-clc2 run`) — runs the steps in fixed order
-   from a YAML config. Use this for CI and reproducibility.
-2. **Agent CLI** (`molgent --prompt-file workflow.md`) — feeds a paper-style
+1. **Paper-faithful CLI** (`molgent-clc2-gmx`) — GROMACS + CHARMM36m + CGenFF
+   + CHARMM-GUI Membrane Builder, exactly the stack used in the paper. Output
+   matches Ma et al. 2023's force field, thermostat (V-rescale), barostat
+   (Parrinello-Rahman), and 5 ns × 5 replicates production schedule. Use this
+   when you need the rankings to align with the paper. Requires a CHARMM-GUI
+   account (manual web step) and a CGenFF-licensed station, plus a system
+   GROMACS install.
+2. **Reference CLI** (`molgent-clc2 run`) — OpenMM + AMBER14SB/LIPID17 + GAFF2
+   reference implementation. Self-contained, single-package install, but the
+   force field differs from the paper so absolute energies and occupancies are
+   indicative rather than reproducible.
+3. **Agent CLI** (`molgent --prompt-file workflow.md`) — feeds a paper-style
    prompt to Claude Sonnet 4.6 and lets the model decide tool order, retries,
    and report wording. Uses prompt caching for the system prompt + tool block.
 
@@ -44,21 +53,67 @@ If you're stuck on pip-only, pre-generate the AK-42 OpenMM ForceField XML on a
 conda host once and commit it as `data/ligands/AK4.xml`; the MD module picks it
 up automatically.
 
-## Reproduce Ma et al. 2023
+## Reproduce Ma et al. 2023 (paper-faithful pipeline)
 
-1. **Stage the deposited structures** (see [`data/structures/README.md`](data/structures/README.md)).
-   The sandbox blocks RCSB; commit the three `.pdb` files once.
-2. **Run the deterministic pipeline**:
+The default reproduction path uses GROMACS + CHARMM36m. There is a one-time
+manual prep before the CLI takes over.
+
+### One-time prep (done off-box)
+
+1. **CHARMM-GUI Membrane Builder** — open https://www.charmm-gui.org/ ,
+   upload **7XJA** (apo TMD) and **8GQU** (bound TMD) separately, configure
+   POPC bilayer + 150 mM NaCl, request GROMACS output. For the 8GQU run check
+   "include heterogen" so the deposited GH6 ligand is preserved. Download both
+   archives and extract them into:
+   ```
+   data/charmm_gui/apo_tmd/
+   data/charmm_gui/bound_tmd/
+   ```
+2. **CGenFF for AK-42** — extract GH6 with `molgent-clc2-gmx`'s ligand helper
+   or run the included one-liner once:
    ```bash
-   molgent-clc2 run --config molgent/workflows/clc2_ak42/config.yaml
+   python -c "from molgent.core.ligand import extract_from_pdb; \
+              extract_from_pdb('data/structures/8gqu.pdb', 'GH6', 'A', \
+              'OC(=O)c1cccnc1Nc2c(Cl)ccc(OCc3ccccc3)c2Cl', 'data/ligands')"
    ```
-   This runs `100 ns × 3 replicas` for both the apo and AK-42-bound TMD on
-   GPU. Wall time is ~2–4 days on a single recent NVIDIA GPU.
-3. **Inspect the report**:
-   ```
-   data/results/clc2_ak42/report.md
-   data/results/clc2_ak42/figures/{per_residue_dG,distances,rmsf}.png
-   ```
+   Upload `data/ligands/GH6_from_pdb.mol2` to https://cgenff.silcsbio.com/
+   and save the resulting stream file as `data/ligands/gh6.str`. (Alternative:
+   if your CHARMM-GUI run already merged the ligand, the .str gets generated
+   inside the bundle automatically.)
+3. **GROMACS** — `brew install gromacs` (macOS) or your distro equivalent.
+4. **gmx_MMPBSA** — `mamba install -c conda-forge ambertools=23 parmed=4`,
+   then `pip install gmx_MMPBSA` in that env.
+
+### Running the pipeline
+
+* **CPU verification** (≈30 min on a recent laptop, single replicate ~ 50 ps
+  each phase) — confirms the bundle parses, distances resolve, and gmx_MMPBSA
+  consumes the trajectory:
+  ```bash
+  molgent-clc2-gmx cpu-verify
+  ```
+* **Full paper protocol** (5 ns × 5 replicates × {apo, bound}; needs GPU):
+  ```bash
+  molgent-clc2-gmx run
+  ```
+* **Inspect the report**:
+  ```
+  data/results/clc2_ak42_gmx/report.md
+  data/results/clc2_ak42_gmx/figures/{per_residue_dG,distances,rmsf}.png
+  ```
+
+### Reference (OpenMM/AMBER) pipeline
+
+The original OpenMM/AMBER reference path is still available for comparison and
+for environments where GROMACS / AmberTools cannot be installed:
+
+```bash
+molgent-clc2 run --config molgent/workflows/clc2_ak42/config.yaml
+```
+
+Wall time is comparable on GPU. **Force field differs from the paper** so the
+top-residue ranking and binding energy scale should be interpreted as
+indicative.
 
 ### Acceptance criterion
 
@@ -103,7 +158,8 @@ Other tests are pure Python and skip dependency-gated cases automatically.
 | Component | State |
 |---|---|
 | Tool layer (`molgent/agent/tools.py`) | implemented + tested |
-| Deterministic pipeline (`molgent-clc2`) | implemented |
+| Reference pipeline (`molgent-clc2`, OpenMM/AMBER) | implemented |
+| Paper-faithful pipeline (`molgent-clc2-gmx`, GROMACS/CHARMM36m) | implemented; needs CHARMM-GUI bundle + CGenFF .str + GROMACS install |
 | Agent loop with prompt caching | implemented |
 | ClC-2/AK-42 workflow config + expected outcomes | committed |
 | End-to-end reproduction run on GPU | **runs on the user's box** |

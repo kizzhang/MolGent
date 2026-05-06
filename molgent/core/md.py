@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable
+
+from molgent.core.forcefield import make_forcefield
 
 log = logging.getLogger(__name__)
 
@@ -32,7 +33,7 @@ class MDConfig:
     write_interval_ps: float = 100.0
     seed: int = 1
     forcefield_files: tuple[str, ...] = (
-        "amber14-all.xml",
+        "amber14/protein.ff14SB.xml",
         "amber14/lipid17.xml",
         "amber14/tip3p.xml",
     )
@@ -62,32 +63,6 @@ def _platform():
     raise RuntimeError("No OpenMM platform available")
 
 
-def _make_forcefield(cfg: MDConfig):
-    from openmm.app import ForceField
-
-    forcefield = ForceField(*cfg.forcefield_files)
-
-    if cfg.ligand_ff_xml is not None and Path(cfg.ligand_ff_xml).exists():
-        forcefield.loadFile(str(cfg.ligand_ff_xml))
-        return forcefield
-
-    if cfg.ligand_sdf is not None:
-        try:
-            from openff.toolkit.topology import Molecule
-            from openmmforcefields.generators import GAFFTemplateGenerator
-        except ImportError as exc:
-            raise ImportError(
-                "Ligand SDF supplied but openff-toolkit / openmmforcefields are "
-                "not importable. Install via conda on the GPU box, or pre-generate "
-                "an OpenMM ForceField XML and pass it as ligand_ff_xml."
-            ) from exc
-        mol = Molecule.from_file(str(cfg.ligand_sdf))
-        gaff = GAFFTemplateGenerator(molecules=mol, forcefield="gaff-2.11")
-        forcefield.registerTemplateGenerator(gaff.generator)
-
-    return forcefield
-
-
 def build_system(prepared_pdb: Path, cfg: MDConfig):
     """Return (topology, positions, system, integrator) ready to simulate."""
 
@@ -95,7 +70,11 @@ def build_system(prepared_pdb: Path, cfg: MDConfig):
     from openmm.app import HBonds, PDBFile, PME
 
     pdb = PDBFile(str(prepared_pdb))
-    forcefield = _make_forcefield(cfg)
+    forcefield = make_forcefield(
+        cfg.forcefield_files,
+        ligand_sdf=cfg.ligand_sdf,
+        ligand_ff_xml=cfg.ligand_ff_xml,
+    )
 
     system = forcefield.createSystem(
         pdb.topology,

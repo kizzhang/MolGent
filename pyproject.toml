@@ -30,13 +30,21 @@ dependencies = [
 # Installable via pip on most systems but heavier; required for ligand FF generation.
 gpu = ["openmmforcefields>=0.14"]
 dev = ["pytest>=8", "pytest-cov", "ruff"]
+# Paper-faithful (GROMACS/CHARMM36m) pipeline — pulls AmberTools-side helpers
+# in addition to a system-installed GROMACS (`brew install gromacs`) and a
+# conda-installed AmberTools (`mamba install -c conda-forge ambertools`).
+gromacs = ["gmx_MMPBSA>=1.6"]
 
 [project.scripts]
 molgent = "molgent.agent.cli:main"
 molgent-clc2 = "molgent.workflows.clc2_ak42.run:main"
+molgent-clc2-gmx = "molgent.workflows.clc2_ak42.run_gromacs:main"
 
 [tool.setuptools.packages.find]
 include = ["molgent*"]
+
+[tool.setuptools.package-data]
+"molgent.templates.gmx_mdp" = ["*.mdp", "*.in"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

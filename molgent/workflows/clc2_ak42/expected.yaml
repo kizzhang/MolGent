@@ -14,17 +14,26 @@ top_residues:
 acceptance:
   min_top_overlap: 3
 
+# H-bond distances. ``paper_value`` is the equilibrium/MD-averaged distance
+# reported in Ma et al. 2023 Fig 4. ``crystal_8gqu`` is what we measure on the
+# deposited 8GQU coordinates (chain A) directly — the gap reflects relaxation
+# during the paper's 5 × 5 ns MD. Acceptance is keyed on ``min_occupancy`` of
+# the H-bond cutoff (≤3.5 Å) over the production trajectory, **not** on the
+# starting frame matching ``paper_value``.
 hbond_distances_A:
   K204_NZ_to_pyridine_N:
     paper_value: 3.0
+    crystal_8gqu: 3.68
     cutoff: 3.5
     min_occupancy: 0.7
   S392_OG_to_carboxyl_O:
     paper_value: 2.7
+    crystal_8gqu: 3.51
     cutoff: 3.5
     min_occupancy: 0.6
   K394_N_to_carboxyl_O:
     paper_value: 2.57
+    crystal_8gqu: 2.61
     cutoff: 3.5
     min_occupancy: 0.7
 

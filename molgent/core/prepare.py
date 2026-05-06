@@ -11,6 +11,8 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
+from molgent.core.forcefield import make_forcefield
+
 log = logging.getLogger(__name__)
 
 
@@ -22,7 +24,13 @@ class PreparedStructure:
     n_chains: int
 
 
-def fix_pdb(in_pdb: Path, out_pdb: Path, ph: float = 7.4) -> PreparedStructure:
+def fix_pdb(
+    in_pdb: Path,
+    out_pdb: Path,
+    ph: float = 7.4,
+    *,
+    keep_heterogens: bool = False,
+) -> PreparedStructure:
     """Add missing residues/atoms/hydrogens with PDBFixer."""
 
     from openmm.app import PDBFile
@@ -32,7 +40,8 @@ def fix_pdb(in_pdb: Path, out_pdb: Path, ph: float = 7.4) -> PreparedStructure:
     fixer.findMissingResidues()
     fixer.findNonstandardResidues()
     fixer.replaceNonstandardResidues()
-    fixer.removeHeterogens(keepWater=False)
+    if not keep_heterogens:
+        fixer.removeHeterogens(keepWater=False)
     fixer.findMissingAtoms()
     fixer.addMissingAtoms()
     fixer.addMissingHydrogens(ph)
@@ -54,7 +63,13 @@ def add_membrane_and_solvate(
     lipid: str = "POPC",
     padding_nm: float = 1.5,
     ionic_strength_M: float = 0.15,
-    forcefield_files: tuple[str, ...] = ("amber14-all.xml", "amber14/lipid17.xml", "amber14/tip3p.xml"),
+    forcefield_files: tuple[str, ...] = (
+        "amber14/protein.ff14SB.xml",
+        "amber14/lipid17.xml",
+        "amber14/tip3p.xml",
+    ),
+    ligand_sdf: Path | None = None,
+    ligand_ff_xml: Path | None = None,
 ) -> PreparedStructure:
     """Embed the protein in a POPC bilayer and solvate with TIP3P + 150 mM NaCl.
 
@@ -63,11 +78,15 @@ def add_membrane_and_solvate(
     """
 
     from openmm import unit
-    from openmm.app import ForceField, Modeller, PDBFile
+    from openmm.app import Modeller, PDBFile
 
     pdb = PDBFile(str(fixed_pdb))
     modeller = Modeller(pdb.topology, pdb.positions)
-    forcefield = ForceField(*forcefield_files)
+    forcefield = make_forcefield(
+        forcefield_files,
+        ligand_sdf=ligand_sdf,
+        ligand_ff_xml=ligand_ff_xml,
+    )
     modeller.addMembrane(
         forcefield,
         lipidType=lipid,
