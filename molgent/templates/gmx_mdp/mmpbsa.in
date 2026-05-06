@@ -1,0 +1,25 @@
+Per-residue MM/GBSA decomposition for AK-42 binding to ClC-2 (Ma et al. 2023).
+&general
+  startframe         = {startframe}
+  endframe           = {endframe}
+  interval           = {interval}
+  forcefields        = "leaprc.protein.ff14SB,leaprc.gaff"
+  ions_parameters    = 1
+  PBRadii            = 3
+  temperature        = 310.0
+  endpoint_grids     = 0
+  exp_ki             = 0.0
+  netcdf             = 0
+  c2_entropy         = 0
+  search_path        = 0
+  verbose            = 1
+/
+&gb
+  igb                = {igb}
+  saltcon            = 0.150
+/
+&decomp
+  idecomp            = 4
+  dec_verbose        = {dec_verbose}
+  print_res          = "within 6.0"
+/

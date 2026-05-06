@@ -29,9 +29,10 @@ import logging
 from collections import defaultdict
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
 
 import numpy as np
+
+from molgent.core.forcefield import make_forcefield
 
 log = logging.getLogger(__name__)
 
@@ -45,9 +46,10 @@ class MMPBSAConfig:
     ligand_resname: str
     out_dir: Path
     forcefield_files: tuple[str, ...] = (
-        "amber14-all.xml",
+        "amber14/protein.ff14SB.xml",
         "implicit/gbn2.xml",
     )
+    ligand_sdf: Path | None = None
     ligand_ff_xml: Path | None = None
     stride: int = 10        # use every Nth frame
     max_frames: int | None = None
@@ -72,12 +74,13 @@ def _iter_frames(top_pdb: Path, traj_dcd: Path, stride: int, max_frames: int | N
 
 
 def _build_implicit_system(pdb_path: Path, cfg: MMPBSAConfig):
-    from openmm import unit
-    from openmm.app import ForceField, NoCutoff, PDBFile
+    from openmm.app import NoCutoff, PDBFile
 
-    ff = ForceField(*cfg.forcefield_files)
-    if cfg.ligand_ff_xml is not None and Path(cfg.ligand_ff_xml).exists():
-        ff.loadFile(str(cfg.ligand_ff_xml))
+    ff = make_forcefield(
+        cfg.forcefield_files,
+        ligand_sdf=cfg.ligand_sdf,
+        ligand_ff_xml=cfg.ligand_ff_xml,
+    )
 
     pdb = PDBFile(str(pdb_path))
     system = ff.createSystem(
@@ -108,7 +111,6 @@ def _energy(topology, positions, system) -> float:
 def _frame_to_pdbs(frame, ligand_resname: str, work_dir: Path) -> tuple[Path, Path, Path]:
     """Write complex / protein-only / ligand-only PDBs for a single frame."""
 
-    import mdtraj as md
 
     work_dir.mkdir(parents=True, exist_ok=True)
     keep = frame.topology.select(f"protein or resname {ligand_resname}")
@@ -156,7 +158,11 @@ def _per_residue_interaction(complex_pdb: Path, ligand_resname: str, cfg: MMPBSA
     res_atoms: dict[tuple[str, int, str], list[int]] = defaultdict(list)
     for atom in topology.atoms():
         res = atom.residue
-        key = (res.chain.id, res.index, res.name)
+        try:
+            resid = int(res.id)
+        except (TypeError, ValueError):
+            resid = res.index
+        key = (res.chain.id, resid, res.name)
         res_atoms[key].append(atom.index)
 
     # Baseline energy

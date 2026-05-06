@@ -31,6 +31,8 @@ class DistanceSpec:
     residue_atom: str      # e.g. "NZ"
     ligand_resname: str    # e.g. "AK4" or "LIG"
     ligand_atom: str       # e.g. "N7"
+    chain: str | None = None
+    ligand_chain: str | None = None
 
 
 @dataclass
@@ -56,6 +58,10 @@ def _select_one(universe, sel: str):
     if sub.n_atoms != 1:
         raise ValueError(f"Selection {sel!r} matched {sub.n_atoms} atoms (want 1)")
     return sub[0]
+
+
+def _chain_prefix(chain: str | None) -> str:
+    return f"segid {chain} and " if chain else ""
 
 
 def run_analysis(cfg: AnalysisConfig) -> AnalysisResult:
@@ -94,10 +100,14 @@ def run_analysis(cfg: AnalysisConfig) -> AnalysisResult:
         pairs = []
         for spec in cfg.distances:
             res_atom = _select_one(
-                u, f"resid {spec.residue_index} and name {spec.residue_atom}"
+                u,
+                f"{_chain_prefix(spec.chain)}resid {spec.residue_index} "
+                f"and name {spec.residue_atom}",
             )
             lig_atom = _select_one(
-                u, f"resname {spec.ligand_resname} and name {spec.ligand_atom}"
+                u,
+                f"{_chain_prefix(spec.ligand_chain)}resname {spec.ligand_resname} "
+                f"and name {spec.ligand_atom}",
             )
             pairs.append((spec.name, res_atom.index, lig_atom.index))
 

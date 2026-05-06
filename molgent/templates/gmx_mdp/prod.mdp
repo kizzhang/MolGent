@@ -1,0 +1,58 @@
+; Production MD, paper protocol (Ma et al. 2023, NPT, 5 ns × 5 replicates).
+; No position restraints. CHARMM36m + CGenFF (assigned via CHARMM-GUI bundle
+; merged with cgenff .str).
+
+integrator              = md
+dt                      = {timestep_ps}
+nsteps                  = {nsteps}
+
+; Output control: 10 ps trajectory frame interval.
+nstxout                 = 0
+nstvout                 = 0
+nstfout                 = 0
+nstenergy               = {nstenergy}
+nstlog                  = {nstlog}
+nstxout-compressed      = {nstxout_compressed}
+compressed-x-grps       = System
+
+; Bond constraints.
+constraints             = h-bonds
+constraint-algorithm    = lincs
+lincs-iter              = 1
+lincs-order             = 4
+
+; Neighbor searching.
+cutoff-scheme           = Verlet
+ns_type                 = grid
+nstlist                 = 20
+rlist                   = 1.2
+pbc                     = xyz
+
+; Electrostatics + vdW.
+coulombtype             = PME
+rcoulomb                = 1.2
+fourierspacing          = 0.16
+pme_order               = 4
+vdwtype                 = cutoff
+vdw-modifier            = force-switch
+rvdw-switch             = 1.0
+rvdw                    = 1.2
+DispCorr                = no
+
+; Temperature coupling — V-rescale (paper).
+; tc-grps follows CHARMM-GUI Membrane Builder convention.
+tcoupl                  = v-rescale
+tc-grps                 = SOLU MEMB SOLV
+tau_t                   = 0.1   0.1   0.1
+ref_t                   = {temperature_k}  {temperature_k}  {temperature_k}
+
+; Pressure coupling — Parrinello-Rahman, semi-isotropic (paper).
+pcoupl                  = Parrinello-Rahman
+pcoupltype              = semiisotropic
+tau_p                   = 5.0
+ref_p                   = {pressure_bar} {pressure_bar}
+compressibility         = 4.5e-5 4.5e-5
+
+; Velocities continued from NPT.
+gen_vel                 = no
+continuation            = yes
